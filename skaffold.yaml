@@ -1,0 +1,20 @@
+apiVersion: skaffold/v2alpha3
+kind: Config
+deploy:
+  kubectl:
+    manifests:
+      - infra/k8s/*
+build:
+  googleCloudBuild:
+    # get from GCloud console
+    projectId: ticketing-dev-311703
+  artifacts:
+    # Gcloud repo of images. This is where our images get pushed (no longer docker hub like okak2006/auth)
+    - image: us.gcr.io/ticketing-dev-311703/auth
+      context: auth
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        manual:
+          - src: 'src/**/*.ts'
+            dest: .
