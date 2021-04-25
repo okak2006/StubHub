@@ -1,0 +1,39 @@
+APP-CREATION STEPS
+1) intall typescript / express/ ts-node-dev / @type/express express-validator express-async-errors mongoose
+2) tsc --config to configure ts
+3) src > index.ts > set up express
+4) set up npm start script
+5) create Dockerfile & dockerignore file (ensure docker is installed)
+6) create k8 depl file (enable Kubernetes from docker desktop)
+7) create skaffold file (see React-Mini-Microservice's ReadMe on skaffold set up)
+8) set up ingress-nginx (instructions: https://kubernetes.github.io/ingress-nginx/deploy/)
+9) Google Cloud set up (ensure Gcloud account is set up + GCloud SDK is installed + added to Sys Env variable)
+   i)   GCloud console > Kubernetes > Cluster > Enable
+   ii)  GCloud console > Kubernetes create cluster. Std & set up Node + Machine type
+   iii) Set up context to connect to cluster in Gloud: `gcloud container clusters get-credentials <cluster_name>`. This switches K8 to cloud.
+   iv)  Initialize GCloud: `gcloud init` > follow wizard
+   v)   Enable Gcloud Build. GCloud console> search Cloud Build API > Enable
+10)Update skaffold to use GCloud
+11)Set up ingress-nginx on Gloud Cluster: (GCloud instructions: https://kubernetes.github.io/ingress-nginx/deploy/)
+12)Update local machine's host file to point to Load balancer IP. GCloud Console > Network Services > IP 
+13)`skaffold dev`
+14)set up express routes (see index.ts for boilerplate)
+15)set up errors and handling with ts (see below for detail)
+
+----
+Error Handling Notes: all of the logic below is applied to achieve normalized error response. In microservices, we can often end up with
+different backend architecture which can return errors in various format. This strategy allows us to achieve consistent error response object.
+
+1) If error criteria is met in each routes, it throws a specific kind of Error (i.e. RequestValidationError) which is extended from the CustomError abstract class
+2) This CustomError is also  extended from JS native Error object. In other words, specific error subclass => extends from CustomError => extends from Error
+4) Whenever an error is thrown, the error handler middleware gets called
+3) The middleware takes a few params like "err" which has properties and methods from the thrown error (i.e. RequestValidationError)
+4) The middleware checks if the thrown error is an instanceof the CustomError. This effectively ensures it has required properties and methods.
+5) The middleware then sends back a response that utilizes props on err such as statusCode and serializeErrors()
+
+TS Errors:
+1) As an additional layer to ensure that the subclasses has correct structure and returns message in correct format, it uses Abstract classes.
+   Abstract classes are used to set up requirements for subclasses. 
+   When we translate Abstract Class to JS, we end up with a class definition in JS (unlike interfaces; there is no "interfaces" in JS)
+   This means that we can use it in "instanceof" checks like above
+-----

@@ -3,14 +3,14 @@ kind: Config
 deploy:
   kubectl:
     manifests:
-      - infra/k8s/*
+      - ./infra/k8s/*
 build:
   googleCloudBuild:
     # get from GCloud console
-    projectId: ticketing-dev-311703
+    projectId: spry-sequence-311718
   artifacts:
     # Gcloud repo of images. This is where our images get pushed (no longer docker hub like okak2006/auth)
-    - image: us.gcr.io/ticketing-dev-311703/auth
+    - image: us.gcr.io/spry-sequence-311718/auth
       context: auth
       docker:
         dockerfile: Dockerfile
