@@ -1,5 +1,5 @@
 APP-CREATION STEPS
-1) intall typescript / express/ ts-node-dev / @type/express express-validator express-async-errors mongoose
+1) intall typescript / express/ ts-node-dev / @type/express express-validator express-async-errors mongoose @types/mongoose
 2) tsc --config to configure ts
 3) src > index.ts > set up express
 4) set up npm start script
@@ -32,8 +32,14 @@ different backend architecture which can return errors in various format. This s
 5) The middleware then sends back a response that utilizes props on err such as statusCode and serializeErrors()
 
 TS Errors:
-1) As an additional layer to ensure that the subclasses has correct structure and returns message in correct format, it uses Abstract classes.
+   As an additional layer to ensure that the subclasses has correct structure and returns message in correct format, it uses Abstract classes.
    Abstract classes are used to set up requirements for subclasses. 
    When we translate Abstract Class to JS, we end up with a class definition in JS (unlike interfaces; there is no "interfaces" in JS)
    This means that we can use it in "instanceof" checks like above
 -----
+
+16) set up mongodb (see auth-mongo-depl.yaml) and add it to skaffold
+17) connect to mongodb on app start
+18) build user model (representation of db table) for mongoose. Mongoose user document represents one single user
+19) build interface and helper function for ts so that it can check the parameters passed to constructor (i.e. email, pass for User model)
+20) build signup route logic
