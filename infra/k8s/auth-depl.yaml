@@ -1,26 +1,40 @@
+# reference: https://www.mirantis.com/blog/introduction-to-yaml-creating-a-kubernetes-deployment/#basics
+# Which version of the Kubernetes API you're using to create this object
 apiVersion: apps/v1
+# kind of object to create
 kind: Deployment
 metadata:
+  # name of deployment
   name: auth-depl
 spec:
+  # number of pods to run for the auth service
+  # Pod is a group of one or more containers with shared storage and network resource
+  # Pods are the smallest deployable units that you can create and manage in k8
   replicas: 1
+  # select which pods to manage in this depl file. In this case, all pods with label: auth
   selector:
     matchLabels:
       app: auth
+  # information about the pod to create
   template:
     metadata:
+      # identifier of pod just like name. Make sure this matches selector
       labels:
         app: auth
+    # details of containers to create inside the pod. Remember the build steps for the image itself is in Dockerfile
     spec:
       containers:
+        #make a container with name: auth
         - name: auth
           image: us.gcr.io/spry-sequence-311718/auth
 ---
+# Cluster IP Service: easy to use URL / Name to manage access to this pod. We make this whenever we want to make communication between pods
 apiVersion: v1
 kind: Service
 metadata:
   name: auth-srv
 spec:
+  # select which pod to expose. Port should match what your app is listening to
   selector:
     app: auth
   ports:

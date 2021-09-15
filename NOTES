@@ -1,18 +1,27 @@
-APP-CREATION STEPS
-1) intall typescript / express/ ts-node-dev / @type/express express-validator express-async-errors mongoose @types/mongoose
-2) tsc --config to configure ts
-3) src > index.ts > set up express
-4) set up npm start script
-5) create Dockerfile & dockerignore file (ensure docker is installed)
-6) create k8 depl file (enable Kubernetes from docker desktop)
-7) create skaffold file (see React-Mini-Microservice's ReadMe on skaffold set up)
+APP-CREATION STEPS + Explanation
+
+This section is on creating the auth service. After creating the auth folder and running npm init -y in the auth folder, we will start by installing necessary dependencies.
+
+1) cmd: `install typescript express ts-node-dev @type/express express-validator express-async-errors mongoose @types/mongoose`
+2) cmd: `tsc --config init` to generate ts config file and set up configuration (see tsconfig.json for more details)
+3) create src folder > index.ts > set up basic express server
+4) set up npm start script in package.json and verify that the app can be started
+
+Before building actual auth service, set up k8 first:
+5) create Dockerfile & dockerignore file.This file provides instructions on how an image should be built. 
+6) create k8 depl file after enabling Kubernetes from docker desktop. This file instructs how many pods we want to create, which container we want to put inside the pod, and which image the container should use  
+   i) create infra folder at project root level > make k8s folder > auth.depl.yaml
+7) create skaffold file. This file has instructions for how to handle build, push, and deploy application continuously.For example, everytime code changes in auth directory, it would sync the changes with container in the k8 cluster
 8) set up ingress-nginx (instructions: https://kubernetes.github.io/ingress-nginx/deploy/)
+   ingress controller resides inside the cluster and is responsible for routing requests to pods
+   however, to access the controller from outside, it needs to go through a load-balancer
 9) Google Cloud set up (ensure Gcloud account is set up + GCloud SDK is installed + added to Sys Env variable)
    i)   GCloud console > Kubernetes > Cluster > Enable
-   ii)  GCloud console > Kubernetes create cluster. Std & set up Node + Machine type
-   iii) Set up context to connect to cluster in Gloud: `gcloud container clusters get-credentials <cluster_name>`. This switches K8 to cloud.
+   ii)  GCloud console > Kubernetes create cluster. Std settings for default-pool. Go to Node > choose machine (n1 + small is good enough for our project)
+   iii) Install GCloud SDK and login using gcloud shell: `gcloud auth login`
    iv)  Initialize GCloud: `gcloud init` > follow wizard
-   v)   Enable Gcloud Build. GCloud console> search Cloud Build API > Enable
+   v)   Set up context to connect to cluster in Gloud: `gcloud container clusters get-credentials <cluster_name>`. This switches K8 to cloud.
+   vi)  Enable Gcloud Build. GCloud console> search Cloud Build API > Enable
 10)Update skaffold to use GCloud
 11)Set up ingress-nginx on Gloud Cluster: (GCloud instructions: https://kubernetes.github.io/ingress-nginx/deploy/)
 12)Update local machine's host file to point to Load balancer IP. GCloud Console > Network Services > IP 
@@ -21,15 +30,16 @@ APP-CREATION STEPS
 15)set up errors and handling with ts (see below for detail)
 
 ----
-Error Handling Notes: all of the logic below is applied to achieve normalized error response. In microservices, we can often end up with
+Error Handling Notes: all of the logic below is applied to achieve normalized error response. In microservices, we often end up with
 different backend architecture which can return errors in various format. This strategy allows us to achieve consistent error response object.
 
 1) If error criteria is met in each routes, it throws a specific kind of Error (i.e. RequestValidationError) which is extended from the CustomError abstract class
-2) This CustomError is also  extended from JS native Error object. In other words, specific error subclass => extends from CustomError => extends from Error
+2) This CustomError is also  extended from JS native Error object so that express error-handling mw can detect the error
+3) The end goal is to throw an object like Error with specific custom properties: statusCode + message + optional field parameters
 4) Whenever an error is thrown, the error handler middleware gets called
-3) The middleware takes a few params like "err" which has properties and methods from the thrown error (i.e. RequestValidationError)
-4) The middleware checks if the thrown error is an instanceof the CustomError. This effectively ensures it has required properties and methods.
-5) The middleware then sends back a response that utilizes props on err such as statusCode and serializeErrors()
+5) The middleware takes a few params like "err" which has properties and methods from the thrown error (i.e. RequestValidationError)
+6) The middleware checks if the thrown error is an instanceof the CustomError. This effectively ensures it has required properties and methods.
+7) The middleware then sends back a response that utilizes props on err such as statusCode and serializeErrors()
 
 TS Errors:
    As an additional layer to ensure that the subclasses has correct structure and returns message in correct format, it uses Abstract classes.
@@ -42,4 +52,49 @@ TS Errors:
 17) connect to mongodb on app start
 18) build user model (representation of db table) for mongoose. Mongoose user document represents one single user
 19) build interface and helper function for ts so that it can check the parameters passed to constructor (i.e. email, pass for User model)
-20) build signup route logic
+20) build signup route logic (see signup.ts)
+21) create password hashing and comparison service (see password.ts) and add it as a pre-save hook in singup.ts
+
+------
+Authentication Strategies and Options
+
+There are multiple strategies we can deploy for authentications in microservices but each has its own downside. For example,
+if we set our individual services (i.e. ticket-order service) to handle authentication by communicating directly with the auth service, 
+we introduce a strict dependency where if the authentication service goes down, any subsequent request to that service
+will be rejected. To overcome this problem, we can build in the authentication logic inside each service. The downside to this is
+that we are making assumptions that the JWT is valid. For example, even if a user gets banned, that user can still have a JWT token
+that is valid and thus make requests. To solve this issue, we can set some expiration time so that after it expired, the user is
+forced to refresh his token with the authentication service. If we want to make the app even more secure, whenever we want to
+invalidate the token, we can throw an event to a event-bus which in turn emits to all the service that the user should be banned.
+That user's information can be stored in short-lived cache memory equivalent to the expiration period of all tokens (we don't want
+each service to track all banned users since that can eat up a lot of memory).
+
+------ 
+JWT vs Cookies
+
+JWT is mostly used for authentication vs authorization and we need to handle the tokens manually. Cookies on the other hand, are transport
+mechanism and can store any data. It's not necessarily for authentication and authorization and they are automatically managed by the browser.
+
+For this app our auth mechanisms require that it must be able to tell us details about a user (permissions, etc), handle authorization info,
+have a built-in tamper resistant way to handle expiration and invalidation, be understood between different backend language (since
+often time microservices deploy multiple backend languages) and must not require some kind of backing data store on the server. JWT
+saftisfies these requirements and has built in function to handle these tasks. 
+
+Cookies on the other hand can be more fragile (i.e. users can easily copy the cookie to circumvent expiration). We just need to come up 
+with a way to communicate info via JWT between server and browser. However, there is some additional consideration we need to make since 
+we will be building a server side rendered application. With server side rendering, we don't have much control over our initial request 
+unlike traditional client side rendered application where we first fetch html + js file and modify header bodies, etc. For example, in a
+normal react app, we show a part of the page then make a request to the server by including jwt in the headers and based on the response,
+render rest of the page. However, in SSR we show the entire page at once which is built by the server so if the server wants to build the page,
+it inspects the cookie and based on the auth status, builds the rest of the page. To do this, we need to store the JWT as a cookie since that's 
+the only way we can communicate the token to backend during initial page load. By storing JWT in cookies and using cookie-session library 
+we do not have to rely on backend data store. 
+
+-------
+
+22. install cookie-session @types/cookie-session and configure express to use cookie-session inside index.ts
+23. install jwt and use it in signup.ts to put user info on the token and then set it inside cookie
+   i) in doing so, we need to create an object inside k8 cluster that stores jwt secret which will be used
+      across multiple services to sign and validate tokens. Specifically we will assign the jwt's as environment vars in each pods
+   ii) to create secret `kubectl create generic jwt-secret --from-literal=jwt=asdf` note: we can assign any key value pair at the end
+

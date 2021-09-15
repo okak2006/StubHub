@@ -1,5 +1,6 @@
 apiVersion: skaffold/v2alpha3
 kind: Config
+#specify all config files we want to load into our cluster
 deploy:
   kubectl:
     manifests:
@@ -8,13 +9,16 @@ build:
   googleCloudBuild:
     # get from GCloud console
     projectId: spry-sequence-311718
+  # artifacts: all the images that are going to be built
   artifacts:
-    # Gcloud repo of images. This is where our images get pushed (no longer docker hub like okak2006/auth)
+    # Gcloud repo of images. Name of image to build/rebuild. When GCloud builds image, it gives it a name in specific format so make sure to specify the image in that format
     - image: us.gcr.io/spry-sequence-311718/auth
+      #folder that contains all the code for this image
       context: auth
       docker:
         dockerfile: Dockerfile
       sync:
         manual:
+          # sync changes whenever any .ts files change in our src folder using Dockerfile instructions
           - src: 'src/**/*.ts'
             dest: .

@@ -12,5 +12,6 @@ spec:
         paths:
           - path: /api/users/?(.*)
             backend:
+              # name of cluster ip service
               serviceName: auth-srv
               servicePort: 3000

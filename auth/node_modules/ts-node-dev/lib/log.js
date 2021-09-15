@@ -2,12 +2,16 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.makeLog = void 0;
 var util = require('util');
-var fmt = require('dateformat');
 var colors = {
     info: '36',
     error: '31;1',
     warn: '33',
     debug: '90',
+};
+var formatDate = function (date) {
+    return [date.getHours(), date.getMinutes(), date.getSeconds()]
+        .map(function (n) { return n.toString().padStart(2, '0'); })
+        .join(':');
 };
 /**
  * Logs a message to the console. The level is displayed in ANSI colors,
@@ -18,7 +22,7 @@ exports.makeLog = function (cfg) {
         if (cfg.quiet && level === 'info')
             return;
         if (cfg.timestamp)
-            msg = color(fmt(cfg.timestamp), '30;1') + ' ' + msg;
+            msg = color(formatDate(new Date()), '30;1') + ' ' + msg;
         var c = colors[level.toLowerCase()] || '32';
         console.log('[' + color(level.toUpperCase(), c) + '] ' + msg);
     }

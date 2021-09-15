@@ -1,11 +1,11 @@
 import { scrypt, randomBytes } from 'crypto';
 import { promisify } from 'util';
-
 const scryptAsync = promisify(scrypt);
 
 export class Password {
   static async toHash(password: string) {
     const salt = randomBytes(8).toString('hex');
+    //scrypt returns buffer which is like array with raw data
     const buf = (await scryptAsync(password, salt, 64)) as Buffer;
 
     return `${buf.toString('hex')}.${salt}`;
