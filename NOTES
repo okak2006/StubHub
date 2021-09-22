@@ -96,5 +96,31 @@ we do not have to rely on backend data store.
 23. install jwt and use it in signup.ts to put user info on the token and then set it inside cookie
    i) in doing so, we need to create an object inside k8 cluster that stores jwt secret which will be used
       across multiple services to sign and validate tokens. Specifically we will assign the jwt's as environment vars in each pods
-   ii) to create secret `kubectl create generic jwt-secret --from-literal=jwt=asdf` note: we can assign any key value pair at the end
+   ii) to create secret `kubectl create generic jwt-secret --from-literal=jwt=fea9jwaf` note: we can assign any key value pair at the end
+   iii) modify auth.depl.yaml to access the key as environment variable
+24) create signin route - very similar to signup route
+   i) extract validation logic into middleware for reuse
+25) create current user signin route
+   i) this is for future use: it checks req.session.jwt and see if it's empty or valid and if so, send back user info
+      rather than signining in everytime user hits different routes, we can simply make a request to this route
+   ii) make this function a middleware since it will be used repeatedly in different services
+   iii) on a similar note, also make a middleware to reject request if user is not logged in
+
+---
+
+Augmenting Type Definitions
+
+Sometimes we need to augment type definitions. For example, TS has a Request type for request, but we might want to add
+additional properties to the request object. This was the case for current-user middleware where we want to add the 
+current-user to the request object. To do this, we first defined an interface for payload since by default ts expects
+const to be a string or an object. We did this by adding 'as {interfaceName}' at the end of the payload object. To reach
+into existing type definition:
+
+declare global {
+  namespace Express {
+    interface Request {
+      currentUser?: UserPayload;
+    }
+  }
+}
 

@@ -15,6 +15,8 @@ import { Password } from '../services/password';
     password: string;
   }
   
+  // in js, if there is a function inside object, json.stringify invokes that function instead of returning key value pairs
+  // similarly, mongoose allows passing toJSON to control how document gets translated to json which will be returned as response
   const userSchema = new mongoose.Schema(
     {
       email: {

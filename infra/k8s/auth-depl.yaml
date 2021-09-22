@@ -27,6 +27,12 @@ spec:
         #make a container with name: auth
         - name: auth
           image: us.gcr.io/spry-sequence-311718/auth
+          env:
+            - name: JWT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: JWT_KEY
 ---
 # Cluster IP Service: easy to use URL / Name to manage access to this pod. We make this whenever we want to make communication between pods
 apiVersion: v1
