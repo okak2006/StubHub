@@ -106,7 +106,7 @@ we do not have to rely on backend data store.
    ii) make this function a middleware since it will be used repeatedly in different services
    iii) on a similar note, also make a middleware to reject request if user is not logged in
 
----
+----
 
 Augmenting Type Definitions
 
@@ -124,3 +124,79 @@ declare global {
   }
 }
 
+----
+
+26) About tests: tests will run directly from terminal without using docker or k8. Note that this is only possible
+    if local environment is capable of running each service. In our case, the auth service only requires nodeJS and
+    mongodb
+   i)   use jest to start in-memory copy of mongodb to allow quickly testing multiple db at the same time
+   ii)  start our express app
+   iii) supertest library to make fake request to our express app.
+        Note: supertest bounds connection to ephemeral port if server is not already listening for connections.
+        This is a convenient feature in microservices when we try to run multiple tests for different services because
+        these services might try to listen to the same port when they start => fail to listen.
+   iv)  run assertions to make sure the request did the right thing
+27) To make express work with supertest, we will split the index file into two parts. After modification index.ts will be
+    responsible for starting the app, and a new file app.js will export express instance without port information. This
+    allows us to move express app instance to the test files so supertest can start app using available properties
+28) add testing scripts to package.json
+29) create tests
+   i) when testing with jest, create a __test__ folder at same directory as the files that you want to test.
+   ii) within the __test__ folder, each test file will be named {name of file to test}.test.ts
+   iii) in setup.ts, write some general instructions before and after running each test (i.e. connect to db, kill connection, etc)
+   Note: jest / jest-ts sometimes doesn't see changes you make to files. If that happens, just ctrl+c and npm run test again
+   Note: special care needs to be taken when dealing with tokens (see current-user.ts) since supertest's behavior is different from browser / postman
+
+----
+Next js
+1) When using next.js, routing is handled by folder structure. Each page should be placed inside the pages folder
+   - install dependencies: npm run install next react react-dom axios bootstrap
+2) npm run dev should kick off next
+3) create client-depl.yaml file in infra/k8s just like auth-depl.yaml
+4) Next.js sometimes has issues detecting file changes inside docker container. To overcome this issue write a config in next.config.js
+5) add bootstrap. in __app.s import bootstrap and add code in order to add bootstrap globally
+6) create signup form. here we have some logic to submit and handle errors that will be used across different pages so make a custom hook
+   this hook returns a method and an error state. inside hook whenever we make a call and get errors, we are setting the error state.
+   the error state is a JSX containing the error message structure. since this state is returned, we will always have the live up-to-date
+   error state in the component that uses the hook
+   note: if we throw an error inside doRequest method of the hook, code won't proceed further than await
+7) when user hits client and the fully rendered component that gets returned needs to contain info about whether user is signed in
+   in other words, we need to figure out how to make request while our component is getting served from server
+   i)   inspect url of incoming request and determine set of components to show
+   ii)  call those components 'getInitialProps' static method which is a method unique to NextJS
+        it calls this while it attempts to render our application on server. any object returned here will be accessible as prop
+   iii) render each component with data from getInitialProps 'one time'
+   iv)  assemble html from all components, send back response
+
+----
+Note on server side request in NextJS
+
+axios behaves differently when we try to make calls from browser and server. For our next js set up, if we make a request to ticketing.dev, it makes a 
+get request to localhost:80, which in turn goes to ingress-nginx. Because ingress nginx didn't see any specific url path, it sent off
+request to default handler which is client service. Then next js also sees there's no path and calls getInitialProps and calls /api/users/currentUser.
+This gets translated to localhost:80/api/users/currentuser OF THE CONTAINER. Unless we allow solutions like cross namespace service communication,
+we will get an errconnect error. This would be different if we execute the request on the browser side because when we make request to
+/api/users/currentuser, the browser assumes we are making request on the same domain = ticketing.dev/api/users/currentuser as opposed to localhost
+of a specific container
+
+To get around the issue, when we make requests from server side, we can make direct requests to ingress-nginx which already knows how to handle 
+incoming requests and forwarding it to different services. 2 challenges: how to hit ingress-nginx and how to manage cookies.
+
+Between pods in the same namespace, we can use cluster ip service but to hit ingress-nginx from pods. Inside k8, ingress-nginx resides
+outside the default namespace in the 'ingress-nginx' namespace. In Summary, we need to dynamically change requests depending on where
+it's coming from: request from component or request from getInitialProps
+
+to list all namespace: `kubectl get namespace`
+to get service name in specific namespace: `kubectl get services -n {namespace}` (i.e. ingress-nginx)
+----
+
+When getInitialProps gets called
+- Hard refresh of page
+- Clicking link from different domain
+- Typing URL into address balancer
+
+----
+8) create a build-client api which returns different axios calls pointing to different endpoints depending on whether the request is 
+   coming from client or server side. Note: when coming server, we need to specify the "host" so ingress-nginx can process request
+9) also add cookies. getInitialProps function has access to req object. Within req, it has headers (req.headers), which contains
+   host and cookies. Pass the header onto build-client api so it can append req.header on axios

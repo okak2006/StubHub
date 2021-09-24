@@ -22,3 +22,11 @@ build:
           # sync changes whenever any .ts files change in our src folder using Dockerfile instructions
           - src: 'src/**/*.ts'
             dest: .
+    - image: us.gcr.io/spry-sequence-311718/client
+      context: client
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        manual:
+          - src: '**/*.js'
+            dest: .

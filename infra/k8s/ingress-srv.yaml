@@ -10,8 +10,13 @@ spec:
     - host: ticketing.dev
       http:
         paths:
+          # ingress matches request in order. For example, if it does not match api/users it will go to the next path
           - path: /api/users/?(.*)
             backend:
               # name of cluster ip service
               serviceName: auth-srv
+              servicePort: 3000
+          - path: /?(.*)
+            backend:
+              serviceName: client-srv
               servicePort: 3000
